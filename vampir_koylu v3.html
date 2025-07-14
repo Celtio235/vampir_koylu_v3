@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vampir Köylü - Gizli Rol Dağıtıcı</title>
+  <style>
+    #screen {
+      margin-top: 2rem;
+      font-size: 1.5rem;
+      min-height: 6rem;
+    }
+  </style>
+</head>
+<body style="font-family:sans-serif;text-align:center;padding:2rem">
+  <h2>🎭 Vampir Köylü - Gizli Rol Gösterimi</h2>
+  <p>Oyuncu sayısını seçin ve "Oyunu Başlat"a tıklayın.</p>
+
+  <div id="setup">
+    <label for="playerCount">Oyuncu Sayısı (3-10): </label>
+    <input type="number" id="playerCount" min="3" max="10" value="4" style="width:50px" />
+    <button onclick="startGame()">Oyunu Başlat</button>
+  </div>
+
+  <div id="screen" style="display:none">Ekran temizleniyor...</div>
+  <button id="nextButton" onclick="showNext()" style="margin-top:2rem;font-size:1.2rem;padding:0.5rem 1.5rem;display:none">İleri</button>
+
+  <script>
+    const topics = ["Elon Musk", "Harry Potter", "Galatasaray", "Kedi", "Instagram", "Karadeniz", "Atatürk", "Breaking Bad", "Bitcoin", "Fast Food"];
+
+    let players = [];
+    let roles = [];
+    let topic = "";
+    let vampireIndex = -1;
+    let current = 0;
+    let waiting = false;
+    let totalPlayers = 0;
+
+    function startGame() {
+      const count = parseInt(document.getElementById("playerCount").value);
+      if (count < 3 || count > 10) {
+        alert("Lütfen 3 ile 10 arasında bir sayı girin.");
+        return;
+      }
+      totalPlayers = count;
+      players = [];
+      for (let i = 1; i <= count; i++) {
+        players.push(`Oyuncu ${i}`);
+      }
+      document.getElementById("setup").style.display = "none";
+      document.getElementById("screen").style.display = "block";
+      document.getElementById("nextButton").style.display = "inline-block";
+      initializeGame();
+    }
+
+    function initializeGame() {
+      topic = topics[Math.floor(Math.random() * topics.length)];
+      vampireIndex = Math.floor(Math.random() * totalPlayers);
+      roles = [];
+      for (let i = 0; i < totalPlayers; i++) {
+        if (i === vampireIndex) {
+          roles.push("Sen vampirsin. Konuyu bilmiyorsun, çaktırmamaya çalış!");
+        } else {
+          roles.push(`Konu: ${topic}`);
+        }
+      }
+      current = 0;
+      waiting = false;
+      document.getElementById("screen").innerHTML = "Ekran hazır. Oyuncular sırayla 'İleri'ye basabilir.";
+    }
+
+    function showNext() {
+      if (waiting) return;
+      const screen = document.getElementById("screen");
+
+      if (current < totalPlayers) {
+        screen.innerHTML = `${players[current]}<br><br><strong>${roles[current]}</strong>`;
+        waiting = true;
+        setTimeout(() => {
+          screen.innerHTML = "📱 Ekran temizlendi. Sıradaki oyuncuya verin.";
+          waiting = false;
+        }, 4000);
+        current++;
+      } else if (current === totalPlayers) {
+        screen.innerHTML = "🎉 Roller dağıtıldı. Yeni tur için 'İleri' tuşuna tekrar basın!";
+        current++;
+      } else if (current === totalPlayers + 1) {
+        initializeGame();
+      }
+    }
+  </script>
+</body>
+</html>
