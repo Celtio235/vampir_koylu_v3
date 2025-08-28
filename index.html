@@ -2,92 +2,537 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Vampir Köylü - Gizli Rol Dağıtıcı</title>
   <style>
-    #screen {
-      margin-top: 2rem;
-      font-size: 1.5rem;
-      min-height: 6rem;
+    :root{
+      --bg:#0f172a;      /* slate-900 */
+      --card:#111827;    /* gray-900 */
+      --muted:#94a3b8;   /* slate-400 */
+      --fg:#e5e7eb;      /* gray-200 */
+      --acc:#22c55e;     /* green-500 */
+      --warn:#f59e0b;    /* amber-500 */
     }
+    html,body{height:100%}
+    body{
+      margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,Apple Color Emoji,Segoe UI Emoji;
+      background: radial-gradient(1200px 800px at 20% -10%, #1e293b 0%, var(--bg) 40%, #0b1021 100%);
+      color:var(--fg); display:flex; align-items:center; justify-content:center; padding:16px;
+    }
+    .app{width:min(980px,100%);} 
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+      border:1px solid rgba(255,255,255,0.06);
+      box-shadow:0 10px 30px rgba(0,0,0,.35);
+      backdrop-filter: blur(6px);
+      border-radius:20px; padding:20px;
+    }
+    h1{font-size:clamp(1.4rem, 2.2vw + 1rem, 2.2rem); margin:0 0 6px}
+    .sub{color:var(--muted); margin:0 0 18px}
+    .row{display:flex; gap:12px; flex-wrap:wrap; align-items:end}
+    .field{display:flex; flex-direction:column; gap:6px; min-width:150px}
+    label{font-size:.9rem; color:var(--muted)}
+    input, select, textarea, button{
+      border-radius:12px; border:1px solid rgba(255,255,255,0.08);
+      background:#0b1224; color:var(--fg); padding:10px 12px; font-size:1rem;
+    }
+    textarea{height:110px; resize:vertical}
+    button{cursor:pointer; transition:.15s transform, .15s opacity}
+    button:hover{transform:translateY(-1px)}
+    .primary{background:linear-gradient(180deg, #22c55e, #16a34a); border:none; color:white; font-weight:700}
+    .ghost{background:#0b1224}
+    .danger{background:#7f1d1d}
+    .grid{display:grid; grid-template-columns: 1fr; gap:14px}
+    @media(min-width:720px){ .grid{ grid-template-columns: 1fr 1fr } }
+    .screen{
+      text-align:center; min-height:8rem; display:flex; align-items:center; justify-content:center;
+      border-radius:16px; border:1px dashed rgba(255,255,255,0.15); padding:18px; font-size:1.3rem;
+      background:rgba(2,6,23,.35)
+    }
+    .badge{display:inline-block; padding:4px 10px; border-radius:999px; font-size:.85rem; background:#0b1224; border:1px solid rgba(255,255,255,.08); color:var(--muted)}
+    .flex{display:flex; gap:10px; align-items:center; justify-content:center; flex-wrap:wrap}
+    .spacer{height:8px}
+    .tiny{font-size:.85rem; color:var(--muted)}
+    .hold{ user-select:none; -webkit-user-select:none; border:1px dashed rgba(255,255,255,.25); padding:12px 14px; border-radius:12px; display:inline-block;}
+    .pill{padding:6px 10px; background:#0b1224; border-radius:999px; border:1px solid rgba(255,255,255,.06)}
+    .counter{font-variant-numeric:tabular-nums}
   </style>
 </head>
-<body style="font-family:sans-serif;text-align:center;padding:2rem">
-  <h2>🎭 Vampir Köylü - Gizli Rol Gösterimi</h2>
-  <p>Oyuncu sayısını seçin ve "Oyunu Başlat"a tıklayın.</p>
+<body>
+  <div class="app">
+    <div class="card">
+      <h1>🎭 Vampir Köylü – Gizli Rol Gösterimi</h1>
+      <p class="sub">Cihazı oyuncular arasında sırayla dolaştırın. Roller kısa süreyle görünür ve otomatik gizlenir.
+      </p>
 
-  <div id="setup">
-    <label for="playerCount">Oyuncu Sayısı (3-10): </label>
-    <input type="number" id="playerCount" min="3" max="10" value="4" style="width:50px" />
-    <button onclick="startGame()">Oyunu Başlat</button>
+      <!-- SETUP -->
+      <div id="setup">
+        <div class="grid">
+          <div class="field">
+            <label for="playerCount">Oyuncu Sayısı (3–12)</label>
+            <input type="number" id="playerCount" min="3" max="12" value="6" />
+          </div>
+
+          <div class="field">
+            <label for="vampireCount">Vampir Sayısı</label>
+            <select id="vampireCount">
+              <option>1</option>
+              <option>2</option>
+              <option>3</option>
+              <option value="auto" selected>Otomatik (oyuncu sayısına göre)</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="revealMs">Gösterim Süresi (saniye)</label>
+            <input type="number" id="revealMs" min="2" max="10" value="4" />
+          </div>
+
+          <div class="field">
+            <label for="uniqueTopics">Konu Tekrarı</label>
+            <select id="uniqueTopics">
+              <option value="unique" selected>Havuz bitene kadar tekrarlama</option>
+              <option value="allow">Tekrara izin ver</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="spacer"></div>
+
+        <div class="grid">
+          <div class="field">
+            <label for="customTopics">Kendi konuların (her satıra bir tane) <br/> <span class="tiny">İpucu eklemek için: <code>KONU | İPUCU</code></span></label>
+            <textarea id="customTopics" placeholder="Örn:\nTesla | elektrikli\nYüzüklerin Efendisi | yüzük\nFoça | deniz\nBitcoin | dijital"></textarea>
+            <div class="tiny">Not: Buraya eklediklerin cihazda saklanır (localStorage). Hazır listeyle <strong>birlikte</strong> kullanılır.</div>
+          </div>
+          <div class="field">
+            <label>Hazır Konu Havuzu</label>
+            <div class="pill tiny">
+              <span>Toplam konu: <span id="poolCount" class="counter">0</span></span>
+              &nbsp;•&nbsp;
+              <span>Kalan: <span id="leftCount" class="counter">0</span></span>
+            </div>
+            <div class="spacer"></div>
+            <div class="flex">
+              <button class="ghost" id="shufflePool">Havuzu Karıştır</button>
+              <button class="ghost" id="clearCustom">Kendi Konularımı Temizle</button>
+              <button class="ghost" id="resetBag">Kalanı Sıfırla</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="spacer"></div>
+        <div class="grid">
+          <div class="field">
+            <label for="vampHintMode">Vampir İpucu Modu</label>
+            <select id="vampHintMode">
+              <option value="on" selected>Vampire ipucu (konuyla alakalı kelime) göster</option>
+              <option value="off">Vampire ipucu gösterme</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="sameHintForAll">Birden fazla vampirde ipucu</label>
+            <select id="sameHintForAll">
+              <option value="same" selected>Tümü aynı ipucuyu görsün</option>
+              <option value="diff">Her vampir farklı ipucu görsün (varsa)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="spacer"></div>
+        <div class="flex">
+          <button class="primary" id="startBtn">Oyunu Başlat</button>
+        </div>
+      </div>
+
+      <!-- PLAY SCREEN -->
+      <div id="play" style="display:none">
+        <div class="flex">
+          <div class="badge">Sıra: <span id="turn" class="counter">1</span></div>
+          <div class="badge">Oyuncular: <span id="total" class="counter">0</span></div>
+        </div>
+
+        <div class="spacer"></div>
+
+        <div class="screen" id="screen">
+          <div>
+            <div class="tiny">Sıradaki:</div>
+            <div style="font-size:1.6rem; font-weight:700" id="who">Oyuncu 1</div>
+            <div class="spacer"></div>
+            <div class="hold" id="holdHint">Rolü görmek için <strong>basılı tut</strong> (600 ms)</div>
+          </div>
+        </div>
+
+        <div class="spacer"></div>
+
+        <div class="flex">
+          <button id="revealBtn" class="ghost">Basılı Tut ve Göster</button>
+          <button id="nextBtn" class="primary" disabled>Sonraki Oyuncu</button>
+          <button id="newRoundBtn" class="ghost">Yeni Tur</button>
+        </div>
+
+        <div class="spacer"></div>
+        <div class="tiny">Güvenlik: Rol <span id="ttl" class="counter">4</span> sn görüntülenir, sonra otomatik gizlenir.</div>
+      </div>
+    </div>
   </div>
 
-  <div id="screen" style="display:none">Ekran temizleniyor...</div>
-  <button id="nextButton" onclick="showNext()" style="margin-top:2rem;font-size:1.2rem;padding:0.5rem 1.5rem;display:none">İleri</button>
-
   <script>
-    const topics = ["Elon Musk", "Harry Potter", "Galatasaray", "Kedi", "Instagram", "Karadeniz", "Atatürk", "Breaking Bad", "Bitcoin", "Fast Food"];
+    // ===== Helpers =====
+    const $ = (id)=>document.getElementById(id);
+    const rand = (n)=> Math.floor(Math.random()*n);
+    const shuffle = (arr)=>{ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr };
 
-    let players = [];
-    let roles = [];
-    let topic = "";
-    let vampireIndex = -1;
-    let current = 0;
-    let waiting = false;
+    // ===== Topic Model =====
+    // Her konu: { t: "Konu", hints: ["ipucu1","ipucu2", ...] }
+    const readyTopics = [
+      {t:"Elon Musk",hints:["SpaceX","Tesla","roket"]},
+      {t:"Harry Potter",hints:["büyü","asa","Hogwarts"]},
+      {t:"Galatasaray",hints:["aslan","Sarı-Kırmızı","Ali Sami"]},
+      {t:"Fenerbahçe",hints:["Kanarya","Sarı-Lacivert","Kadıköy"]},
+      {t:"Beşiktaş",hints:["kartal","Siyah-Beyaz","Dolmabahçe"]},
+      {t:"Kedi",hints:["mırlama","pati","kum"]},
+      {t:"Instagram",hints:["story","reels","hashtag"]},
+      {t:"Karadeniz",hints:["hamsi","yayla","çay"]},
+      {t:"Atatürk",hints:["Nutuk","Anıtkabir","Cumhuriyet"]},
+      {t:"Breaking Bad",hints:["Heisenberg","mavi","karavan"]},
+      {t:"Bitcoin",hints:["blokzincir","cüzdan","halving"]},
+      {t:"Fast Food",hints:["hamburger","patates","ketçap"]},
+      {t:"NBA",hints:["smaç","üçlük","playoff"]},
+      {t:"Formula 1",hints:["pit","pole","tur"]},
+      {t:"Tesla",hints:["elektrikli","otopilot","şarj"]},
+      {t:"Apple",hints:["iPhone","Mac","AirPods"]},
+      {t:"Android",hints:["apk","widget","play"]},
+      {t:"YouTube",hints:["abonelik","thumbnail","yorum"]},
+      {t:"Netflix",hints:["dizi","film","profil"]},
+      {t:"Çay",hints:["dem","ince belli","sıcak"]},
+      {t:"Türk Kahvesi",hints:["telve","fal","orta"]},
+      {t:"Simit",hints:["susam","çay","sokak"]},
+      {t:"Döner",hints:["lavaş","iskender","şiş"]},
+      {t:"Baklava",hints:["antep","şerbet","fıstık"]},
+      {t:"Kebap",hints:["acı","şiş","lavaş"]},
+      {t:"Kar",hints:["beyaz","soğuk","yağış"]},
+      {t:"Güneş",hints:["ışık","sıcak","plaj"]},
+      {t:"Deniz",hints:["dalga","kumsal","tuzlu"]},
+      {t:"Orman",hints:["ağaç","yeşil","kuş"]},
+      {t:"Dağ",hints:["zirve","tırmanış","soğuk"]},
+      {t:"Venedik",hints:["gondol","kanal","İtalya"]},
+      {t:"Paris",hints:["Eiffel","baget","Louvre"]},
+      {t:"Tokyo",hints:["metro","neon","sushi"]},
+      {t:"Kyoto",hints:["tapınak","gelenek","bambu"]},
+      {t:"Kapadokya",hints:["balon","peri bacası","Nevşehir"]},
+      {t:"Pamukkale",hints:["traverten","beyaz","hierapolis"]},
+      {t:"Foça",hints:["Ege","sahil","deniz"]},
+      {t:"Rize",hints:["çay","yağmur","yeşil"]},
+      {t:"Halısaha",hints:["maç","krampon","5'e 5"]},
+      {t:"Penaltı",hints:["kaleci","nokta","vuruş"]},
+      {t:"Süper Mario",hints:["mantar","prenses","boru"]},
+      {t:"Minecraft",hints:["blok","elmas","craft"]},
+      {t:"GTA",hints:["araç","soygun","harita"]},
+      {t:"Valorant",hints:["ajan","spike","aim"]},
+      {t:"PUBG",hints:["loot","alan","tava"]},
+      {t:"Path of Exile",hints:["league","build","harvest"]},
+      {t:"Battlefield",hints:["tank","harita","squad"]},
+      {t:"Yüzüklerin Efendisi",hints:["yüzük","Shire","ork"]},
+      {t:"Vikings",hints:["kalkan","Longship","sakal"]},
+      {t:"Dark",hints:["zaman","mağara","döngü"]},
+      {t:"Sherlock",hints:["dedektif","Baker","pip"]},
+      {t:"Uzay",hints:["yıldız","galaksi","vakum"]},
+      {t:"Roket",hints:["ateşleme","aşama","yakıt"]},
+      {t:"Teleskop",hints:["mercek","gözlem","ayna"]},
+      {t:"Mars",hints:["kızıl","gezegen","rover"]},
+      {t:"Kripto",hints:["borsa","coin","cüzdan"]},
+      {t:"Dolar",hints:["kur","yeşil","USD"]},
+      {t:"Euro",hints:["kur","ECB","EUR"]},
+      {t:"Altın",hints:["ons","küpe","ziynet"]},
+      {t:"Faiz",hints:["oran","merkez","artış"]},
+      {t:"Enflasyon",hints:["fiyat","sepet","artış"]},
+      {t:"Diyet",hints:["kalori","protein","şeker"]},
+      {t:"Spor",hints:["fitness","koşu","ter"]},
+      {t:"Sneaker",hints:["taban","koleksiyon","air"]},
+      {t:"Saat",hints:["kadran","kayış","Quartz"]},
+      {t:"Parfüm",hints:["koku","notalar","EDP"]},
+      {t:"Gözlük",hints:["cam","çerçeve","UV"]},
+      {t:"X (Twitter)",hints:["tweet","mention","dm"]},
+      {t:"Discord",hints:["sunucu","kanal","rol"]},
+      {t:"WhatsApp",hints:["grup","çevrimiçi","mavi tik"]},
+      {t:"Spotify",hints:["çalma listesi","şarkı","çal"]}
+    ];
+
+    // Storage keys
+    const STORAGE_CUSTOM = "vk_custom_topics_v2";
+    const STORAGE_BAG    = "vk_topic_bag_v2";
+    const STORAGE_SETTINGS = "vk_settings_v2";
+
+    // State
+    let pool = [];   // hazır + custom
+    let bag = [];    // tekrar etmeyen torba
     let totalPlayers = 0;
+    let turn = 1;
+    let vampires = new Set();
+    let revealMs = 4000;
+    let holdTimer = null;
+    let revealTimeout = null;
+    let currentRolePayload = null; // {type:'vampire'|'villager', text:'...', topic:'', hint:''}
+    let chosenTopic = null; // {t,hints}
+    let chosenHintsOrder = []; // ipucu dağıtım sırası
 
-    function startGame() {
-      const count = parseInt(document.getElementById("playerCount").value);
-      if (count < 3 || count > 10) {
-        alert("Lütfen 3 ile 10 arasında bir sayı girin.");
+    // ===== Load/Save =====
+    function loadCustom(){
+      try{ return JSON.parse(localStorage.getItem(STORAGE_CUSTOM)||"[]"); }catch{ return []; }
+    }
+    function saveCustom(list){
+      try{ localStorage.setItem(STORAGE_CUSTOM, JSON.stringify(list)); }catch{}
+    }
+    function loadBag(){ try{ return JSON.parse(localStorage.getItem(STORAGE_BAG)||"null"); }catch{ return null; } }
+    function saveBag(){ try{ localStorage.setItem(STORAGE_BAG, JSON.stringify(bag)); }catch{} }
+    function saveSettings(){
+      const s = {
+        playerCount: +$("playerCount").value,
+        vampireCount: $("vampireCount").value,
+        revealMs: +$("revealMs").value,
+        uniqueTopics: $("uniqueTopics").value,
+        vampHintMode: $("vampHintMode").value,
+        sameHintForAll: $("sameHintForAll").value,
+        custom: $("customTopics").value
+      };
+      try{ localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(s)); }catch{}
+    }
+    function loadSettings(){
+      try{
+        const s = JSON.parse(localStorage.getItem(STORAGE_SETTINGS)||"null");
+        if(!s) return;
+        if(s.playerCount) $("playerCount").value = s.playerCount;
+        if(s.vampireCount) $("vampireCount").value = s.vampireCount;
+        if(s.revealMs) $("revealMs").value = s.revealMs;
+        if(s.uniqueTopics) $("uniqueTopics").value = s.uniqueTopics;
+        if(s.vampHintMode) $("vampHintMode").value = s.vampHintMode;
+        if(s.sameHintForAll) $("sameHintForAll").value = s.sameHintForAll;
+        if(s.custom!==undefined) $("customTopics").value = s.custom;
+      }catch{}
+    }
+
+    // ===== Topic Pool Build =====
+    function parseCustomTextarea(){
+      const lines = $("customTopics").value.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+      const out = [];
+      for(const line of lines){
+        // Format:  "Konu | ipucu1, ipucu2"  veya  "Konu | ipucu"  veya  sadece "Konu"
+        const parts = line.split("|");
+        const t = parts[0].trim();
+        const hints = parts[1] ? parts[1].split(/[,؛;、]+/).map(h=>h.trim()).filter(Boolean) : [];
+        if(t) out.push({t, hints});
+      }
+      return out;
+    }
+
+    function buildPool(){
+      const custom = parseCustomTextarea();
+      saveCustom(custom);
+      pool = [...readyTopics, ...custom];
+      updatePoolCounters();
+    }
+
+    function updatePoolCounters(){
+      $("poolCount").textContent = pool.length;
+      $("leftCount").textContent = bag.length;
+    }
+
+    function refillBag(){
+      bag = pool.map((_,i)=>i); // indeks torbası
+      shuffle(bag);
+      saveBag();
+      updatePoolCounters();
+    }
+
+    function ensureBag(){
+      if($("uniqueTopics").value === 'allow'){
+        // tekrar serbest: torbaya tüm indeksleri koy, ama boşalınca yeniden doldur
+        if(bag.length===0){ refillBag(); }
         return;
       }
-      totalPlayers = count;
-      players = [];
-      for (let i = 1; i <= count; i++) {
-        players.push(`Oyuncu ${i}`);
-      }
-      document.getElementById("setup").style.display = "none";
-      document.getElementById("screen").style.display = "block";
-      document.getElementById("nextButton").style.display = "inline-block";
-      initializeGame();
+      // tekrar yok: torba boşsa baştan doldur ama aynı turun içinde tekrar etmeyecek
+      if(bag.length===0){ refillBag(); }
     }
 
-    function initializeGame() {
-      topic = topics[Math.floor(Math.random() * topics.length)];
-      vampireIndex = Math.floor(Math.random() * totalPlayers);
-      roles = [];
-      for (let i = 0; i < totalPlayers; i++) {
-        if (i === vampireIndex) {
-          roles.push("Sen vampirsin. Konuyu bilmiyorsun, çaktırmamaya çalış!");
-        } else {
-          roles.push(`Konu: ${topic}`);
+    function drawTopic(){
+      ensureBag();
+      if(bag.length===0){ refillBag(); }
+      const idx = bag.pop();
+      saveBag();
+      updatePoolCounters();
+      return pool[idx];
+    }
+
+    // ===== Game Flow =====
+    function autoVampireCount(n){
+      // 3-6:1, 7-9:2, 10-12:3
+      if(n<=6) return 1; if(n<=9) return 2; return 3;
+    }
+
+    function chooseVampires(nPlayers, count){
+      const set = new Set();
+      while(set.size < count){ set.add(rand(nPlayers)); }
+      return set; // index set (0..n-1)
+    }
+
+    function prepareHintsForVampires(topic){
+      const mode = $("vampHintMode").value; if(mode==='off') return [];
+      const hints = topic.hints && topic.hints.length ? [...topic.hints] : ["genel", "ortak", "ipucu"];
+      shuffle(hints);
+      if($("sameHintForAll").value==='same'){
+        return [hints[0]]; // tüm vampirler aynı ipucunu görür
+      }
+      return hints; // mümkün olduğunca farklı dağıt
+    }
+
+    function startGame(){
+      // Read settings
+      totalPlayers = Math.max(3, Math.min(12, +$("playerCount").value||6));
+      $("total").textContent = totalPlayers;
+      revealMs = Math.max(2, Math.min(10, +$("revealMs").value||4))*1000;
+      $("ttl").textContent = Math.floor(revealMs/1000);
+
+      buildPool();
+      if($("uniqueTopics").value==='unique'){
+        // yükten bag'ı kaldıralım/güncelleyelim
+        const loaded = loadBag();
+        bag = Array.isArray(loaded) ? loaded : [];
+      } else {
+        bag = []; // allow: her tur tekrar dolacak
+      }
+
+      chosenTopic = drawTopic();
+      chosenHintsOrder = prepareHintsForVampires(chosenTopic);
+
+      // Vampir sayısı
+      const vSel = $("vampireCount").value;
+      const vCount = vSel === 'auto' ? autoVampireCount(totalPlayers) : Math.max(1, Math.min(3, +vSel||1));
+      vampires = chooseVampires(totalPlayers, vCount);
+
+      // UI
+      $("setup").style.display = 'none';
+      $("play").style.display = 'block';
+      turn = 1;
+      $("turn").textContent = turn;
+      $("who").textContent = `Oyuncu ${turn}`;
+      $("nextBtn").disabled = true;
+      $("screen").innerHTML = `<div><div class="tiny">Sıradaki:</div><div style="font-size:1.6rem; font-weight:700">Oyuncu ${turn}</div><div class="spacer"></div><div class="hold" id="holdHint">Rolü görmek için <strong>basılı tut</strong> (600 ms)</div></div>`;
+      saveSettings();
+    }
+
+    function rolePayloadFor(index){
+      const isVamp = vampires.has(index-1);
+      if(isVamp){
+        // vampir: konu yok, ipucu ver
+        let hint = "";
+        if($("vampHintMode").value==='on'){
+          if($("sameHintForAll").value==='same'){
+            hint = chosenHintsOrder[0] || "ipucu";
+          } else {
+            const k = (index-1) % chosenHintsOrder.length;
+            hint = chosenHintsOrder[k] || chosenHintsOrder[0] || "ipucu";
+          }
         }
+        return {type:'vampire', text:`<strong>Vampirsin!</strong><br>Konuyu <em>bilmiyorsun</em>, çaktırmamaya çalış.<br>${ $("vampHintMode").value==='on' ? `İpucu: <strong>${escapeHTML(hint)}</strong>` : '' }`, topic: '', hint};
       }
-      current = 0;
-      waiting = false;
-      document.getElementById("screen").innerHTML = "Ekran hazır. Oyuncular sırayla 'İleri'ye basabilir.";
+      // köylü: konu görünür
+      return {type:'villager', text:`Konu: <strong>${escapeHTML(chosenTopic.t)}</strong>`, topic: chosenTopic.t, hint:''};
     }
 
-    function showNext() {
-      if (waiting) return;
-      const screen = document.getElementById("screen");
+    function escapeHTML(s){
+      return String(s).replace(/[&<>"']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
+    }
 
-      if (current < totalPlayers) {
-        screen.innerHTML = `${players[current]}<br><br><strong>${roles[current]}</strong>`;
-        waiting = true;
-        setTimeout(() => {
-          screen.innerHTML = "📱 Ekran temizlendi. Sıradaki oyuncuya verin.";
-          waiting = false;
-        }, 4000);
-        current++;
-      } else if (current === totalPlayers) {
-        screen.innerHTML = "🎉 Roller dağıtıldı. Yeni tur için 'İleri' tuşuna tekrar basın!";
-        current++;
-      } else if (current === totalPlayers + 1) {
-        initializeGame();
+    function onRevealDown(){
+      if(holdTimer || revealTimeout) return; // zaten işlemde
+      holdTimer = setTimeout(()=>{
+        // göster
+        currentRolePayload = rolePayloadFor(turn);
+        $("screen").innerHTML = `<div>${currentRolePayload.text}</div>`;
+        $("nextBtn").disabled = true;
+        revealTimeout = setTimeout(hideRole, revealMs);
+      }, 600); // 600ms basılı tutma
+    }
+    function onRevealUp(){
+      if(holdTimer){ clearTimeout(holdTimer); holdTimer=null; }
+    }
+
+    function hideRole(){
+      revealTimeout && clearTimeout(revealTimeout);
+      revealTimeout = null;
+      $("screen").innerHTML = `<div>📱 Ekran temizlendi. Cihazı sıradaki oyuncuya verin.</div>`;
+      $("nextBtn").disabled = false;
+    }
+
+    function nextPlayer(){
+      if(revealTimeout){ // güvenlik: açıkken geçilmesin
+        return;
+      }
+      if(turn < totalPlayers){
+        turn++;
+        $("turn").textContent = turn;
+        $("who").textContent = `Oyuncu ${turn}`;
+        $("screen").innerHTML = `<div><div class=\"tiny\">Sıradaki:</div><div style=\"font-size:1.6rem; font-weight:700\">Oyuncu ${turn}</div><div class=\"spacer\"></div><div class=\"hold\" id=\"holdHint\">Rolü görmek için <strong>basılı tut</strong> (600 ms)</div></div>`;
+        $("nextBtn").disabled = true;
+      } else {
+        $("screen").innerHTML = `🎉 Roller dağıtıldı.<br><span class="tiny">Yeni tur için aşağıdan "Yeni Tur"a bas.</span>`;
+        $("nextBtn").disabled = true;
       }
     }
+
+    function newRound(){
+      // Konuyu yenile
+      chosenTopic = drawTopic();
+      chosenHintsOrder = prepareHintsForVampires(chosenTopic);
+      // Vampirleri yeniden seç
+      const vSel = $("vampireCount").value;
+      const vCount = vSel === 'auto' ? autoVampireCount(totalPlayers) : Math.max(1, Math.min(3, +vSel||1));
+      vampires = chooseVampires(totalPlayers, vCount);
+      // Sıfırla
+      turn = 1;
+      $("turn").textContent = turn;
+      $("who").textContent = `Oyuncu ${turn}`;
+      $("screen").innerHTML = `<div><div class=\"tiny\">Sıradaki:</div><div style=\"font-size:1.6rem; font-weight:700\">Oyuncu ${turn}</div><div class=\"spacer\"></div><div class=\"hold\" id=\"holdHint\">Rolü görmek için <strong>basılı tut</strong> (600 ms)</div></div>`;
+      $("nextBtn").disabled = true;
+    }
+
+    // ===== UI Bindings =====
+    function bind(){
+      $("startBtn").addEventListener('click', startGame);
+      $("revealBtn").addEventListener('mousedown', onRevealDown);
+      $("revealBtn").addEventListener('touchstart', onRevealDown);
+      $("revealBtn").addEventListener('mouseup', onRevealUp);
+      $("revealBtn").addEventListener('mouseleave', onRevealUp);
+      $("revealBtn").addEventListener('touchend', onRevealUp);
+      $("nextBtn").addEventListener('click', nextPlayer);
+      $("newRoundBtn").addEventListener('click', newRound);
+
+      // Utilities
+      $("shufflePool").addEventListener('click', ()=>{ shuffle(pool); refillBag(); updatePoolCounters(); });
+      $("clearCustom").addEventListener('click', ()=>{ $("customTopics").value=''; saveCustom([]); buildPool(); refillBag();});
+      $("resetBag").addEventListener('click', ()=>{ refillBag(); });
+
+      // Live save
+      ["playerCount","vampireCount","revealMs","uniqueTopics","vampHintMode","sameHintForAll","customTopics"]
+        .forEach(id=> $(id).addEventListener('change', saveSettings));
+    }
+
+    // ===== Init =====
+    (function init(){
+      loadSettings();
+      const customSaved = loadCustom();
+      if(customSaved.length && !$("customTopics").value){
+        // yazıya geri koy (ipucu formatıyla)
+        $("customTopics").value = customSaved.map(o=> o.hints && o.hints.length ? `${o.t} | ${o.hints.join(', ')}` : o.t).join("\n");
+      }
+      buildPool();
+      const loaded = loadBag();
+      bag = Array.isArray(loaded) ? loaded : [];
+      updatePoolCounters();
+      bind();
+    })();
   </script>
 </body>
 </html>
+
